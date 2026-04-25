@@ -1,12 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { FieldCreateInput, FieldDefinition, RecordRow } from '@kuidy/shared';
-import { Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
+import type { RecordRow } from '@kuidy/shared';
+import { Plus, Settings2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { FieldFormDialog } from '@/components/FieldFormDialog';
+import { FieldDesignerDrawer } from '@/components/FieldDesignerDrawer';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,6 @@ import {
 import { fieldApi, moduleApi, recordApi } from '@/data/api';
 import { DynamicForm } from '@/dynamic/DynamicForm';
 import { DynamicList } from '@/dynamic/DynamicList';
-import { FieldTypeIcon, fieldTypeLabel } from '@/dynamic/FieldTypeIcon';
 import { ApiError } from '@/lib/api';
 
 export function ModuleView() {
@@ -24,8 +22,6 @@ export function ModuleView() {
   const qc = useQueryClient();
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<RecordRow | null>(null);
-  const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
-  const [editingField, setEditingField] = useState<FieldDefinition | null>(null);
 
   const moduleQ = useQuery({
     queryKey: ['module', moduleId],
@@ -41,38 +37,6 @@ export function ModuleView() {
     queryKey: ['records', moduleId],
     queryFn: () => recordApi.list(moduleId!),
     enabled: !!moduleId,
-  });
-
-  const invalidateFields = () => qc.invalidateQueries({ queryKey: ['fields', moduleId] });
-
-  const createField = useMutation({
-    mutationFn: (input: FieldCreateInput) => fieldApi.create(moduleId!, input),
-    onSuccess: () => {
-      toast.success('Campo creado');
-      invalidateFields();
-      setFieldDialogOpen(false);
-    },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Error al crear campo'),
-  });
-
-  const updateField = useMutation({
-    mutationFn: (vars: { id: string; patch: Partial<Omit<FieldCreateInput, 'slug' | 'type'>> }) =>
-      fieldApi.update(vars.id, vars.patch),
-    onSuccess: () => {
-      toast.success('Campo actualizado');
-      invalidateFields();
-      setFieldDialogOpen(false);
-      setEditingField(null);
-    },
-    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Error al actualizar campo'),
-  });
-
-  const deleteField = useMutation({
-    mutationFn: (id: string) => fieldApi.delete(id),
-    onSuccess: () => {
-      toast.success('Campo eliminado');
-      invalidateFields();
-    },
   });
 
   const createRecord = useMutation({
@@ -108,6 +72,7 @@ export function ModuleView() {
 
   const fields = fieldsQ.data?.fields ?? [];
   const records = recordsQ.data?.records ?? [];
+  const noFields = fields.length === 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -118,123 +83,42 @@ export function ModuleView() {
             /{moduleQ.data?.module.slug} · {records.length} {records.length === 1 ? 'registro' : 'registros'}
           </p>
         </div>
-        <Button
-          size="sm"
-          disabled={fields.length === 0}
-          onClick={() => {
-            setEditingRecord(null);
-            setRecordDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" /> Nuevo registro
-        </Button>
+        <div className="flex items-center gap-2">
+          <FieldDesignerDrawer
+            moduleId={moduleId}
+            fields={fields}
+            trigger={
+              <Button variant="outline" size="sm">
+                <Settings2 className="h-4 w-4" /> Configurar
+              </Button>
+            }
+          />
+          <Button
+            size="sm"
+            disabled={noFields}
+            onClick={() => {
+              setEditingRecord(null);
+              setRecordDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" /> Nuevo registro
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-auto p-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Settings2 className="h-4 w-4" /> Campos del módulo
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setEditingField(null);
-                setFieldDialogOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" /> Agregar campo
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {fields.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Sin campos. Agrega uno para empezar a capturar registros.
-              </p>
-            ) : (
-              <ul className="divide-y">
-                {fields.map((f) => (
-                  <li key={f.id} className="flex items-center gap-2 py-2 text-sm">
-                    <FieldTypeIcon type={f.type} className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate font-medium">{f.name}</span>
-                        {f.required && (
-                          <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-destructive">
-                            Req
-                          </span>
-                        )}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        /{f.slug} · {fieldTypeLabel(f.type)}
-                      </div>
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => {
-                        setEditingField(f);
-                        setFieldDialogOpen(true);
-                      }}
-                      aria-label="Editar campo"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => {
-                        if (confirm(`¿Eliminar el campo "${f.name}"? Los datos en registros existentes no se borran.`)) {
-                          deleteField.mutate(f.id);
-                        }
-                      }}
-                      aria-label="Eliminar campo"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Registros ({records.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {fields.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Define al menos un campo para poder capturar registros.</p>
-            ) : (
-              <DynamicList fields={fields} records={records} onRowClick={(r) => setEditingRecord(r)} />
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex-1 overflow-auto p-6">
+        {noFields ? (
+          <div className="rounded-lg border border-dashed p-10 text-center">
+            <Settings2 className="mx-auto h-8 w-8 text-muted-foreground" />
+            <h3 className="mt-3 font-medium">Define los campos del módulo</h3>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Antes de capturar registros, agrega los campos que los componen. Click en "Configurar" arriba a la derecha.
+            </p>
+          </div>
+        ) : (
+          <DynamicList fields={fields} records={records} onRowClick={(r) => setEditingRecord(r)} />
+        )}
       </div>
-
-      <FieldFormDialog
-        open={fieldDialogOpen}
-        onOpenChange={(o) => {
-          setFieldDialogOpen(o);
-          if (!o) setEditingField(null);
-        }}
-        field={editingField}
-        submitting={createField.isPending || updateField.isPending}
-        onSubmit={(values) => {
-          if (editingField) {
-            updateField.mutate({
-              id: editingField.id,
-              patch: { name: values.name, required: values.required, config: values.config },
-            });
-          } else {
-            createField.mutate(values);
-          }
-        }}
-      />
 
       <Dialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen}>
         <DialogContent>
