@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kuidy-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kuidy
+      POSTGRES_PASSWORD: kuidy_dev
+      POSTGRES_DB: kuidy_core
+    ports:
+      - "5435:5432"
+    volumes:
+      - kuidy-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kuidy -d kuidy_core"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  kuidy-pgdata:

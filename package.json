@@ -1,0 +1,27 @@
+{
+  "name": "kuidy-core",
+  "private": true,
+  "version": "0.1.0",
+  "description": "KUIDY-CORE — data-driven platform for building internal ops apps (inventory, maintenance, helpdesk, CRM, HR)",
+  "packageManager": "pnpm@10.26.2",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "db:psql": "docker compose exec postgres psql -U kuidy -d kuidy_core"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["argon2", "esbuild"]
+  }
+}
