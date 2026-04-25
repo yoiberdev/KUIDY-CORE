@@ -37,6 +37,8 @@ export const fieldApi = {
       method: 'POST',
       body: input,
     }),
+  update: (id: string, patch: Partial<Omit<FieldCreateInput, 'slug' | 'type'>>) =>
+    api<{ field: FieldDefinition }>(`/api/fields/${id}`, { method: 'PATCH', body: patch }),
   delete: (id: string) => api<void>(`/api/fields/${id}`, { method: 'DELETE' }),
 };
 

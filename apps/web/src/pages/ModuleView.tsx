@@ -1,44 +1,23 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fieldCreateInput, FIELD_TYPES, type FieldCreateInput, type RecordRow } from '@kuidy/shared';
-import { Plus, Settings2, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import type { FieldCreateInput, FieldDefinition, RecordRow } from '@kuidy/shared';
+import { Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { FieldFormDialog } from '@/components/FieldFormDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { fieldApi, moduleApi, recordApi } from '@/data/api';
 import { DynamicForm } from '@/dynamic/DynamicForm';
 import { DynamicList } from '@/dynamic/DynamicList';
+import { FieldTypeIcon, fieldTypeLabel } from '@/dynamic/FieldTypeIcon';
 import { ApiError } from '@/lib/api';
-import { slugify } from '@/lib/slug';
 
 export function ModuleView() {
   const { moduleId } = useParams<{ moduleId: string }>();
@@ -46,6 +25,7 @@ export function ModuleView() {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<RecordRow | null>(null);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
+  const [editingField, setEditingField] = useState<FieldDefinition | null>(null);
 
   const moduleQ = useQuery({
     queryKey: ['module', moduleId],
@@ -63,33 +43,35 @@ export function ModuleView() {
     enabled: !!moduleId,
   });
 
-  const fieldForm = useForm<FieldCreateInput>({
-    resolver: zodResolver(fieldCreateInput),
-    defaultValues: { slug: '', name: '', type: 'text', required: false, config: {} },
-  });
-
-  const fieldNameValue = fieldForm.watch('name');
-  const fieldSlugTouched = fieldForm.formState.dirtyFields.slug;
-  useEffect(() => {
-    if (!fieldSlugTouched && fieldNameValue) fieldForm.setValue('slug', slugify(fieldNameValue));
-  }, [fieldNameValue, fieldSlugTouched, fieldForm]);
+  const invalidateFields = () => qc.invalidateQueries({ queryKey: ['fields', moduleId] });
 
   const createField = useMutation({
     mutationFn: (input: FieldCreateInput) => fieldApi.create(moduleId!, input),
     onSuccess: () => {
       toast.success('Campo creado');
-      qc.invalidateQueries({ queryKey: ['fields', moduleId] });
+      invalidateFields();
       setFieldDialogOpen(false);
-      fieldForm.reset({ slug: '', name: '', type: 'text', required: false, config: {} });
     },
     onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Error al crear campo'),
+  });
+
+  const updateField = useMutation({
+    mutationFn: (vars: { id: string; patch: Partial<Omit<FieldCreateInput, 'slug' | 'type'>> }) =>
+      fieldApi.update(vars.id, vars.patch),
+    onSuccess: () => {
+      toast.success('Campo actualizado');
+      invalidateFields();
+      setFieldDialogOpen(false);
+      setEditingField(null);
+    },
+    onError: (err) => toast.error(err instanceof ApiError ? err.message : 'Error al actualizar campo'),
   });
 
   const deleteField = useMutation({
     mutationFn: (id: string) => fieldApi.delete(id),
     onSuccess: () => {
       toast.success('Campo eliminado');
-      qc.invalidateQueries({ queryKey: ['fields', moduleId] });
+      invalidateFields();
     },
   });
 
@@ -154,81 +136,16 @@ export function ModuleView() {
             <CardTitle className="flex items-center gap-2 text-base">
               <Settings2 className="h-4 w-4" /> Campos del módulo
             </CardTitle>
-            <Dialog open={fieldDialogOpen} onOpenChange={setFieldDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <Plus className="h-4 w-4" /> Agregar campo
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Agregar campo</DialogTitle>
-                  <DialogDescription>Define un nuevo campo para este módulo.</DialogDescription>
-                </DialogHeader>
-                <Form {...fieldForm}>
-                  <form onSubmit={fieldForm.handleSubmit((v) => createField.mutate(v))} className="space-y-4">
-                    <FormField
-                      control={fieldForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nombre</FormLabel>
-                          <FormControl><Input placeholder="Nombre del cliente" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={fieldForm.control}
-                      name="slug"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Slug</FormLabel>
-                          <FormControl><Input placeholder="nombre" {...field} /></FormControl>
-                          <FormDescription>Llave en JSON. Minúsculas, dígitos, guiones.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={fieldForm.control}
-                      name="type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tipo</FormLabel>
-                          <FormControl>
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {FIELD_TYPES.map((t) => (
-                                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={fieldForm.control}
-                      name="required"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center gap-2 space-y-0">
-                          <FormControl>
-                            <Checkbox checked={!!field.value} onCheckedChange={(c) => field.onChange(c === true)} />
-                          </FormControl>
-                          <FormLabel className="!mt-0">Requerido</FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" disabled={createField.isPending}>
-                      {createField.isPending ? 'Creando…' : 'Crear campo'}
-                    </Button>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditingField(null);
+                setFieldDialogOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4" /> Agregar campo
+            </Button>
           </CardHeader>
           <CardContent>
             {fields.length === 0 ? (
@@ -238,19 +155,43 @@ export function ModuleView() {
             ) : (
               <ul className="divide-y">
                 {fields.map((f) => (
-                  <li key={f.id} className="flex items-center justify-between py-2 text-sm">
-                    <div>
-                      <span className="font-medium">{f.name}</span>
-                      <span className="ml-2 text-muted-foreground">/{f.slug} · {f.type}{f.required && ' · requerido'}</span>
+                  <li key={f.id} className="flex items-center gap-2 py-2 text-sm">
+                    <FieldTypeIcon type={f.type} className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-medium">{f.name}</span>
+                        {f.required && (
+                          <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium uppercase text-destructive">
+                            Req
+                          </span>
+                        )}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        /{f.slug} · {fieldTypeLabel(f.type)}
+                      </div>
                     </div>
                     <Button
                       size="icon"
                       variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => {
+                        setEditingField(f);
+                        setFieldDialogOpen(true);
+                      }}
+                      aria-label="Editar campo"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
                       onClick={() => {
                         if (confirm(`¿Eliminar el campo "${f.name}"? Los datos en registros existentes no se borran.`)) {
                           deleteField.mutate(f.id);
                         }
                       }}
+                      aria-label="Eliminar campo"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -274,6 +215,26 @@ export function ModuleView() {
           </CardContent>
         </Card>
       </div>
+
+      <FieldFormDialog
+        open={fieldDialogOpen}
+        onOpenChange={(o) => {
+          setFieldDialogOpen(o);
+          if (!o) setEditingField(null);
+        }}
+        field={editingField}
+        submitting={createField.isPending || updateField.isPending}
+        onSubmit={(values) => {
+          if (editingField) {
+            updateField.mutate({
+              id: editingField.id,
+              patch: { name: values.name, required: values.required, config: values.config },
+            });
+          } else {
+            createField.mutate(values);
+          }
+        }}
+      />
 
       <Dialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen}>
         <DialogContent>
