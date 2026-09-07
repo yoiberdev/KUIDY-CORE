@@ -1,5 +1,11 @@
 # Despliegue de KUIDY-CORE como demo pública en Google Cloud Run
 
+> **Ya desplegada:** https://kuidy-core-demo-164532276262.us-central1.run.app
+> Proyecto de Google Cloud `sysrrhh-demo`, servicio `kuidy-core-demo`,
+> región `us-central1`. Base de datos `kuidy` en Neon.
+> Cuentas: owner@ / admin@ / member@ / viewer@kuidy.demo con `Demo1234!`.
+> Esta guía documenta cómo se hizo y cómo repetirlo.
+
 Una sola imagen sirve el frontend (React + Vite) y la API (Hono) **en el mismo
 origen** y escucha en `$PORT`. La base de datos vive **fuera** del contenedor
 (PostgreSQL gestionado en Neon), porque Cloud Run no tiene disco persistente.
