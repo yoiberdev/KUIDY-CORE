@@ -11,6 +11,7 @@ import { fieldRoutes, moduleFieldsRoutes } from './routes/fields.js';
 import { moduleRoutes, projectModulesRoutes } from './routes/modules.js';
 import { projectRoutes } from './routes/projects.js';
 import { moduleRecordsRoutes, recordRoutes } from './routes/records.js';
+import { moduleViewsRoutes, viewRoutes } from './routes/views.js';
 
 const app = new Hono();
 
@@ -53,8 +54,10 @@ app.route('/api/projects/:projectId/modules', projectModulesRoutes);
 app.route('/api/modules', moduleRoutes);
 app.route('/api/modules/:moduleId/fields', moduleFieldsRoutes);
 app.route('/api/modules/:moduleId/records', moduleRecordsRoutes);
+app.route('/api/modules/:moduleId/views', moduleViewsRoutes);
 app.route('/api/fields', fieldRoutes);
 app.route('/api/records', recordRoutes);
+app.route('/api/views', viewRoutes);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {

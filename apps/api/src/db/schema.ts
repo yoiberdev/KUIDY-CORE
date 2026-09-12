@@ -100,6 +100,27 @@ export const fields = pgTable(
   }),
 );
 
+export const views = pgTable(
+  'views',
+  {
+    id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+    moduleId: uuid('module_id')
+      .notNull()
+      .references(() => modules.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    name: text('name').notNull(),
+    layout: jsonb('layout').notNull().default(sql`'{}'::jsonb`),
+    isDefault: boolean('is_default').notNull().default(false),
+    position: integer('position').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    moduleTypeNameUnique: unique('views_module_type_name_unique').on(t.moduleId, t.type, t.name),
+    byModule: index('views_module_idx').on(t.moduleId, t.type),
+  }),
+);
+
 export const records = pgTable(
   'records',
   {
@@ -134,3 +155,5 @@ export type RecordRow = typeof records.$inferSelect;
 export type NewRecordRow = typeof records.$inferInsert;
 export type Membership = typeof memberships.$inferSelect;
 export type NewMembership = typeof memberships.$inferInsert;
+export type View = typeof views.$inferSelect;
+export type NewView = typeof views.$inferInsert;
