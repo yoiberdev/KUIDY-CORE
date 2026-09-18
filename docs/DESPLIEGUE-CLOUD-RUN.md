@@ -139,6 +139,10 @@ curl -s -X POST "$URL/auth/login" -H 'Content-Type: application/json' \
 - **Migraciones concurrentes**: el arranque toma `pg_advisory_lock` en una
   conexión propia, así que varias instancias arrancando a la vez no compiten por
   la tabla de migraciones de drizzle.
+- **Al desplegar esta versión sobre una demo ya en marcha** se aplica una
+  migración nueva (`0001`, la tabla `views`). Solo crea una tabla, no toca las
+  que ya existen, así que los datos sembrados y los que haya creado un visitante
+  se quedan como estaban.
 - **Conexiones**: cada instancia abre hasta `DB_POOL_MAX` (5). Con
   `--max-instances 3` son 15 conexiones; usa el endpoint *pooler* de Neon.
 - **Arranque en frío**: Neon suspende el proyecto tras un rato de inactividad;
