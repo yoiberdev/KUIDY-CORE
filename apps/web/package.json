@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b --force"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
